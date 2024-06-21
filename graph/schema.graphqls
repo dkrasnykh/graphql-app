@@ -1,0 +1,44 @@
+type Post {
+  id: ID!,
+  text: String!,
+  userID: ID!
+  commentsOff: Boolean!
+}
+
+type Comment {
+  id: ID!,
+  text: String!,
+  parentCommentID: ID,
+  postID: ID!,
+  userID: ID!
+}
+
+type Query {
+  posts: [Post!]!
+  post(id: ID!): Post!,
+  comments(postID: ID!, limit: Int = 10, offset: Int = 0): [Comment!]!
+}
+
+input NewPost {
+  text: String!,
+  userID: ID!,
+  commentsOff: Boolean
+}
+
+input NewComment {
+  text: String!,
+  parentCommentID: ID,
+  postID: ID!,
+  userID: ID!
+}
+
+input DisableCommentsRequest {
+  userID: ID!,
+  postID: ID!,
+}
+
+type Mutation {
+  createPost(input: NewPost!): Post!
+  createComment(input: NewComment!): Comment!
+  disableComments(input: DisableCommentsRequest!):Boolean!
+}
