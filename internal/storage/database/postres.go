@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Migrate(databaseURL string, timeout time.Duration) error {
-	pool, err := newPool(databaseURL, timeout)
+func Migrate(databaseURL string) error {
+	pool, err := newPool(databaseURL)
 	if err != nil {
 		return err
 	}
@@ -23,8 +23,8 @@ func Migrate(databaseURL string, timeout time.Duration) error {
 	return nil
 }
 
-func newPool(databaseURL string, timeout time.Duration) (*pgxpool.Pool, error) {
-	newCtx, cancel := context.WithTimeout(context.Background(), timeout*time.Second)
+func newPool(databaseURL string) (*pgxpool.Pool, error) {
+	newCtx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
 	pool, err := pgxpool.New(newCtx, databaseURL)
@@ -33,4 +33,20 @@ func newPool(databaseURL string, timeout time.Duration) (*pgxpool.Pool, error) {
 	}
 
 	return pool, nil
+}
+
+type StoragePostgres struct {
+	db      *pgxpool.Pool
+	timeout time.Duration
+}
+
+func New(databaseURL string) (*StoragePostgres, error) {
+	pool, err := newPool(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+	return &StoragePostgres{
+		db:      pool,
+		timeout: time.Second * 2,
+	}, nil
 }

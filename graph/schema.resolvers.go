@@ -12,32 +12,32 @@ import (
 
 // CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, input model.NewPost) (*model.Post, error) {
-	post, err := r.Post.Validate(input)
+	post, err := r.Service.ValidatePost(input)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Post.Save(ctx, *post)
+	return r.Service.SavePost(ctx, *post)
 }
 
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, input model.NewComment) (*model.Comment, error) {
-	comment, err := r.Comment.Validate(input)
+	comment, err := r.Service.ValidateComment(input)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Comment.Save(ctx, *comment)
+	return r.Service.SaveComment(ctx, *comment)
 }
 
 // DisableComments is the resolver for the disableComments field.
 func (r *mutationResolver) DisableComments(ctx context.Context, input model.DisableCommentsRequest) (bool, error) {
-	userID, postID, err := r.Post.ValidateDisableCommentsRequest(input)
+	userID, postID, err := r.Service.ValidateDisableCommentsRequest(input)
 	if err != nil {
 		return false, err
 	}
 
-	if err := r.Post.DisableComments(ctx, userID, postID); err != nil {
+	if err := r.Service.DisableComments(ctx, userID, postID); err != nil {
 		return false, err
 	}
 
@@ -46,27 +46,27 @@ func (r *mutationResolver) DisableComments(ctx context.Context, input model.Disa
 
 // Posts is the resolver for the posts field.
 func (r *queryResolver) Posts(ctx context.Context) ([]*model.Post, error) {
-	return r.Resolver.Post.All(ctx)
+	return r.Service.AllPosts(ctx)
 }
 
 // Post is the resolver for the post field.
 func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error) {
-	postID, err := r.Resolver.Post.ValidateID(id)
+	postID, err := r.Service.ValidateID(id)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Resolver.Post.ByID(ctx, postID)
+	return r.Service.PostById(ctx, postID)
 }
 
 // Comments is the resolver for the comments field.
 func (r *queryResolver) Comments(ctx context.Context, postID string, limit *int, offset *int) ([]*model.Comment, error) {
-	id, err := r.Resolver.Post.ValidateID(postID)
+	id, err := r.Service.ValidateID(postID)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Resolver.Comment.All(ctx, id, limit, offset)
+	return r.Service.AllComments(ctx, id, limit, offset)
 }
 
 // Mutation returns MutationResolver implementation.

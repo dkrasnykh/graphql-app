@@ -11,15 +11,7 @@ import (
 	"github.com/dkrasnykh/graphql-app/internal/storage"
 )
 
-type Post struct {
-	storage PostStorager
-}
-
-func NewPostService(storage PostStorager) *Post {
-	return &Post{storage: storage}
-}
-
-func (s *Post) Validate(input model.NewPost) (*entity.Post, error) {
+func (s *Service) ValidatePost(input model.NewPost) (*entity.Post, error) {
 	var errList []error
 	if len(input.Text) == 0 {
 		errList = append(errList, ErrEmptyBody)
@@ -35,8 +27,8 @@ func (s *Post) Validate(input model.NewPost) (*entity.Post, error) {
 	return convertNewPostModelIntoEntity(input), nil
 }
 
-func (s *Post) Save(ctx context.Context, post entity.Post) (*model.Post, error) {
-	postID, err := s.storage.Save(ctx, post)
+func (s *Service) SavePost(ctx context.Context, post entity.Post) (*model.Post, error) {
+	postID, err := s.storage.SavePost(ctx, post)
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -45,7 +37,7 @@ func (s *Post) Save(ctx context.Context, post entity.Post) (*model.Post, error) 
 	return convertPostEntityIntoModel(post), nil
 }
 
-func (s *Post) ValidateDisableCommentsRequest(input model.DisableCommentsRequest) (userID int64, postID int64, err error) {
+func (s *Service) ValidateDisableCommentsRequest(input model.DisableCommentsRequest) (userID int64, postID int64, err error) {
 	var errList []error
 	if userID, err = strconv.ParseInt(input.UserID, 10, 64); err != nil {
 		errList = append(errList, fmt.Errorf("%w, user id: %s", ErrInvalidID, input.UserID))
@@ -57,7 +49,7 @@ func (s *Post) ValidateDisableCommentsRequest(input model.DisableCommentsRequest
 	return userID, postID, err
 }
 
-func (s *Post) DisableComments(ctx context.Context, userID int64, postID int64) error {
+func (s *Service) DisableComments(ctx context.Context, userID int64, postID int64) error {
 	if err := s.storage.DisableComments(ctx, userID, postID); err != nil {
 		switch {
 		case errors.Is(err, storage.ErrPostNotFound):
@@ -73,8 +65,8 @@ func (s *Post) DisableComments(ctx context.Context, userID int64, postID int64) 
 	return nil
 }
 
-func (s *Post) ByID(ctx context.Context, ID int64) (*model.Post, error) {
-	post, err := s.storage.ByID(ctx, ID)
+func (s *Service) PostById(ctx context.Context, ID int64) (*model.Post, error) {
+	post, err := s.storage.PostByID(ctx, ID)
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -82,8 +74,8 @@ func (s *Post) ByID(ctx context.Context, ID int64) (*model.Post, error) {
 	return convertPostEntityIntoModel(*post), nil
 }
 
-func (s *Post) All(ctx context.Context) ([]*model.Post, error) {
-	list, err := s.storage.All(ctx)
+func (s *Service) AllPosts(ctx context.Context) ([]*model.Post, error) {
+	list, err := s.storage.AllPosts(ctx)
 	if err != nil {
 		return nil, ErrInternal
 	}
@@ -95,10 +87,10 @@ func (s *Post) All(ctx context.Context) ([]*model.Post, error) {
 	return all, nil
 }
 
-func (s *Post) ValidateID(postID string) (int64, error) {
+func (s *Service) ValidateID(ID string) (int64, error) {
 	var id int64
 	var err error
-	if id, err = strconv.ParseInt(postID, 10, 64); err != nil {
+	if id, err = strconv.ParseInt(ID, 10, 64); err != nil {
 		return 0, ErrInvalidID
 	}
 

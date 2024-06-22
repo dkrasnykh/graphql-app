@@ -5,34 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dkrasnykh/graphql-app/internal/entity"
 	"github.com/dkrasnykh/graphql-app/internal/storage"
 )
 
-type CommentPostgres struct {
-	db      *pgxpool.Pool
-	timeout time.Duration
-}
-
-func NewCommentPostgres(databaseURL string, timeout time.Duration) (*CommentPostgres, error) {
-	pool, err := newPool(databaseURL, timeout)
-	if err != nil {
-		return nil, err
-	}
-	return &CommentPostgres{
-		db:      pool,
-		timeout: timeout,
-	}, nil
-}
-
 // TODO move validation logic into service layer
 // TODO design how to begin/commit transaction into service layer (lock / unlock for memory storage)
-func (s *CommentPostgres) Save(ctx context.Context, comment entity.Comment) (int64, error) {
+func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Comment) (int64, error) {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -110,7 +92,7 @@ func (s *CommentPostgres) Save(ctx context.Context, comment entity.Comment) (int
 }
 
 // default values limit = 10, offset = 0 (graphql schema)
-func (s *CommentPostgres) All(ctx context.Context, postID int64, limit *int, offset *int) ([]*entity.Comment, error) {
+func (s *StoragePostgres) AllComments(ctx context.Context, postID int64, limit *int, offset *int) ([]*entity.Comment, error) {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -150,8 +132,4 @@ func (s *CommentPostgres) All(ctx context.Context, postID int64, limit *int, off
 	}
 
 	return list, nil
-}
-
-func (s *CommentPostgres) ByID(ctx context.Context, id int64) (*entity.Comment, error) {
-	panic("implement me!")
 }

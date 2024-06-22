@@ -11,15 +11,7 @@ import (
 	"github.com/dkrasnykh/graphql-app/internal/storage"
 )
 
-type Comment struct {
-	storage CommentStorager
-}
-
-func NewComment(storage CommentStorager) *Comment {
-	return &Comment{storage: storage}
-}
-
-func (s *Comment) Validate(input model.NewComment) (*entity.Comment, error) {
+func (s *Service) ValidateComment(input model.NewComment) (*entity.Comment, error) {
 	var errList []error
 	if len(input.Text) == 0 {
 		errList = append(errList, ErrEmptyBody)
@@ -46,8 +38,8 @@ func (s *Comment) Validate(input model.NewComment) (*entity.Comment, error) {
 	return convertNewCommentModelIntoEntity(input), nil
 }
 
-func (s *Comment) Save(ctx context.Context, comment entity.Comment) (*model.Comment, error) {
-	id, err := s.storage.Save(ctx, comment)
+func (s *Service) SaveComment(ctx context.Context, comment entity.Comment) (*model.Comment, error) {
+	id, err := s.storage.SaveComment(ctx, comment)
 	if err != nil {
 		switch {
 		case errors.Is(err, storage.ErrPostNotFound):
@@ -66,8 +58,8 @@ func (s *Comment) Save(ctx context.Context, comment entity.Comment) (*model.Comm
 	return convertCommentEntityIntoModel(comment), nil
 }
 
-func (s *Comment) All(ctx context.Context, postID int64, limit *int, offset *int) ([]*model.Comment, error) {
-	list, err := s.storage.All(ctx, postID, limit, offset)
+func (s *Service) AllComments(ctx context.Context, postID int64, limit *int, offset *int) ([]*model.Comment, error) {
+	list, err := s.storage.AllComments(ctx, postID, limit, offset)
 	if err != nil {
 		return nil, ErrInternal
 	}

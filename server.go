@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -13,37 +13,29 @@ import (
 	"github.com/dkrasnykh/graphql-app/graph"
 	"github.com/dkrasnykh/graphql-app/internal/service"
 	"github.com/dkrasnykh/graphql-app/internal/storage/database"
+	"github.com/dkrasnykh/graphql-app/internal/storage/memory"
 )
 
-const defaultPort = "8080"
+const (
+	defaultPort = "8080"
+	databaseURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+)
 
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
 	}
-	databaseURL := "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
-	timeout := time.Second * 2
 
-	err := database.Migrate(databaseURL, time.Second*2)
-	if err != nil {
-		panic(err)
-	}
+	var isMemory bool
+	flag.BoolVar(&isMemory, "m", false, "use memory storage")
+	flag.Parse()
 
-	postStorage, err := database.NewPostPostgres(databaseURL, timeout)
-	if err != nil {
-		panic(err)
-	}
+	storager := storage(isMemory)
 
-	commentStorage, err := database.NewCommentPostgres(databaseURL, timeout)
-	if err != nil {
-		panic(err)
-	}
+	serv := service.New(storager)
 
-	servicePost := service.NewPostService(postStorage)
-	serviceComment := service.NewComment(commentStorage)
-
-	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Post: servicePost, Comment: serviceComment}}))
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Service: serv}}))
 
 	srv.AddTransport(&transport.Websocket{})
 
@@ -53,4 +45,19 @@ func main() {
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func storage(isMemory bool) service.Storager {
+	if isMemory {
+		return memory.New()
+	}
+	err := database.Migrate(databaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	storage, err := database.New(databaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return storage
 }

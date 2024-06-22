@@ -3,33 +3,15 @@ package database
 import (
 	"context"
 	"errors"
-	"time"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/dkrasnykh/graphql-app/internal/entity"
 	"github.com/dkrasnykh/graphql-app/internal/storage"
 )
 
-type PostPostgres struct {
-	db      *pgxpool.Pool
-	timeout time.Duration
-}
-
-func NewPostPostgres(databaseURL string, timeout time.Duration) (*PostPostgres, error) {
-	pool, err := newPool(databaseURL, timeout)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PostPostgres{
-		db:      pool,
-		timeout: timeout,
-	}, nil
-}
-
-func (s *PostPostgres) Save(ctx context.Context, post entity.Post) (int64, error) {
+func (s *StoragePostgres) SavePost(ctx context.Context, post entity.Post) (int64, error) {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -44,7 +26,7 @@ func (s *PostPostgres) Save(ctx context.Context, post entity.Post) (int64, error
 	return id, nil
 }
 
-func (s *PostPostgres) ByID(ctx context.Context, id int64) (*entity.Post, error) {
+func (s *StoragePostgres) PostByID(ctx context.Context, id int64) (*entity.Post, error) {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -64,7 +46,7 @@ func (s *PostPostgres) ByID(ctx context.Context, id int64) (*entity.Post, error)
 	return &post, nil
 }
 
-func (s *PostPostgres) All(ctx context.Context) ([]*entity.Post, error) {
+func (s *StoragePostgres) AllPosts(ctx context.Context) ([]*entity.Post, error) {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -83,7 +65,7 @@ func (s *PostPostgres) All(ctx context.Context) ([]*entity.Post, error) {
 
 // TODO move validation logic into service layer
 // TODO design how to begin/commit transaction into service layer (lock / unlock for memory storage)
-func (s *PostPostgres) DisableComments(ctx context.Context, userID int64, postID int64) error {
+func (s *StoragePostgres) DisableComments(ctx context.Context, userID int64, postID int64) error {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -106,7 +88,7 @@ func (s *PostPostgres) DisableComments(ctx context.Context, userID int64, postID
 	}
 	if currUserID != userID {
 		_ = tx.Rollback(newCtx)
-		return storage.ErrAccess
+		return fmt.Errorf("%w, keeper ID:%d", storage.ErrAccess, currUserID)
 	}
 	if disabled {
 		_ = tx.Rollback(newCtx)
