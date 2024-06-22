@@ -13,6 +13,7 @@ import (
 )
 
 // TODO move validation logic into service layer
+// all checks must be performed in one transaction
 // TODO design how to begin/commit transaction into service layer (lock / unlock for memory storage)
 func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Comment) (int64, error) {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
@@ -75,7 +76,8 @@ func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Commen
 	}
 
 	// build rank (rank needed for pagination data sorting)
-	subRank := fmt.Sprintf("%010d", id)
+	// int64 max value = 9223372036854775807 - 19 characters -> subrank len == 19
+	subRank := fmt.Sprintf("%019d", id)
 	rank = append(rank, []byte(subRank)...)
 	// update current comment
 	_, err = tx.Exec(ctx, "UPDATE comments SET rank = $1 WHERE id = $2", string(rank), id)
@@ -96,6 +98,7 @@ func (s *StoragePostgres) AllComments(ctx context.Context, postID int64, limit *
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
+	// TODO query can be more simply, if storing an additional field in the database (root comment value)
 	rows, err := s.db.Query(newCtx,
 		`WITH RECURSIVE tmp(comment_id, parent_id, root) AS (
 				SELECT t1.comment_id, t1.parent_id, t1.comment_id AS root

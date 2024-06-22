@@ -64,6 +64,7 @@ func (s *StoragePostgres) AllPosts(ctx context.Context) ([]*entity.Post, error) 
 }
 
 // TODO move validation logic into service layer
+// all checks must be performed in one transaction
 // TODO design how to begin/commit transaction into service layer (lock / unlock for memory storage)
 func (s *StoragePostgres) DisableComments(ctx context.Context, userID int64, postID int64) error {
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)

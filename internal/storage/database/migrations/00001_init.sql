@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS comments
     user_id           BIGINT        NOT NULL,
     post_id           BIGINT        NOT NULL,
     parent_comment_id BIGINT,
-    rank              VARCHAR(1000)
+    rank              VARCHAR
 );
 
 -- +goose Down
