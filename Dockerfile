@@ -5,7 +5,8 @@ ENV GOPATH=/
 
 COPY ./ ./
 
+# build go app
 RUN go mod download
-RUN go build -o graphql-app ./cmd/main.go
+RUN go build -o graphql-app ./cmd/server.go
 
 CMD ["./graphql-app"]

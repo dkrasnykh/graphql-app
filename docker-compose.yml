@@ -1,6 +1,14 @@
 version: '3.9'
 
 services:
+  graphql-app:
+    build: ./
+    ports:
+      - 8080:8080
+    depends_on:
+      - db
+    environment:
+      - DB_PASSWORD=password
   db:
     restart: always
     image: postgres:latest

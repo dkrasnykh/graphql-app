@@ -18,7 +18,8 @@ import (
 
 const (
 	defaultPort = "8080"
-	databaseURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+	//databaseURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+	databaseURL = "postgres://postgres:password@db:5432/postgres?sslmode=disable" // build docker image
 )
 
 func main() {
