@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 
@@ -67,6 +68,8 @@ func (s *StoragePostgres) AllPosts(ctx context.Context) ([]*entity.Post, error) 
 // all checks must be performed in one transaction
 // TODO design how to begin/commit transaction into service layer (lock / unlock for memory storage)
 func (s *StoragePostgres) DisableComments(ctx context.Context, userID int64, postID int64) error {
+	const op = "Storage.postgresql.PostDisableComments"
+
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -77,10 +80,12 @@ func (s *StoragePostgres) DisableComments(ctx context.Context, userID int64, pos
 
 	var currUserID int64
 	var disabled bool
-	row := tx.QueryRow(newCtx, "select user_id, is_comments_disabled from posts where id = $1", postID)
+	row := tx.QueryRow(newCtx, "select user_id, is_comments_disabled from posts where id = $1 FOR UPDATE", postID)
 	err = row.Scan(&currUserID, &disabled)
 	if err != nil {
-		_ = tx.Rollback(newCtx)
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			return storage.ErrPostNotFound
 		}
@@ -88,16 +93,22 @@ func (s *StoragePostgres) DisableComments(ctx context.Context, userID int64, pos
 		return storage.ErrInternal
 	}
 	if currUserID != userID {
-		_ = tx.Rollback(newCtx)
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		return fmt.Errorf("%w, keeper ID:%d", storage.ErrAccess, currUserID)
 	}
 	if disabled {
-		_ = tx.Rollback(newCtx)
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		return storage.ErrPostCommentsDisabled
 	}
 	_, err = tx.Exec(newCtx, "UPDATE posts SET is_comments_disabled = true WHERE id = $1", postID)
 	if err != nil {
-		_ = tx.Rollback(newCtx)
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		return storage.ErrInternal
 	}
 

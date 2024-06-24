@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 
@@ -16,6 +17,8 @@ import (
 // all checks must be performed in one transaction
 // TODO design how to begin/commit transaction into service layer (lock / unlock for memory storage)
 func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Comment) (int64, error) {
+	const op = "Storage.postgresql.SaveComment"
+
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
@@ -26,20 +29,26 @@ func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Commen
 
 	// check that the post exists and comments are enabled
 	var isDisabled bool
-	row := tx.QueryRow(ctx, "SELECT is_comments_disabled FROM posts WHERE id = $1", comment.PostID)
+	row := tx.QueryRow(ctx, "SELECT is_comments_disabled FROM posts WHERE id = $1 FOR UPDATE", comment.PostID)
 	err = row.Scan(&isDisabled)
 	if err != nil {
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, storage.ErrPostNotFound
 		}
-
 		return 0, storage.ErrInternal
 	}
 
 	if isDisabled {
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		return 0, storage.ErrPostCommentsDisabled
 	}
 
+	// TODO ? save and compare parents IDS like array field in database
 	rank := []byte{}
 
 	if comment.ParentCommentID != nil {
@@ -48,16 +57,21 @@ func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Commen
 		var parentPostID int64
 		var parentRank string
 
-		row := tx.QueryRow(ctx, "SELECT post_id, rank FROM comments WHERE id = $1", *comment.ParentCommentID)
+		row := tx.QueryRow(ctx, "SELECT post_id, rank FROM comments WHERE id = $1 FOR UPDATE", *comment.ParentCommentID)
 		err = row.Scan(&parentPostID, &parentRank)
 		if err != nil {
+			if err := tx.Rollback(newCtx); err != nil {
+				slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+			}
 			if errors.Is(err, pgx.ErrNoRows) {
 				return 0, storage.ErrInvalidParentCommentID
 			}
-
 			return 0, storage.ErrInternal
 		}
 		if parentPostID != comment.PostID {
+			if err := tx.Rollback(newCtx); err != nil {
+				slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+			}
 			return 0, fmt.Errorf("%w; parent comment post id: %d", storage.ErrParentCommentBelongAnotherPost, parentPostID)
 		}
 
@@ -72,6 +86,9 @@ func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Commen
 		comment.Text, comment.UserID, comment.PostID, comment.ParentCommentID)
 	err = row.Scan(&id)
 	if err != nil {
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		return 0, storage.ErrInternal
 	}
 
@@ -82,6 +99,9 @@ func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Commen
 	// update current comment
 	_, err = tx.Exec(ctx, "UPDATE comments SET rank = $1 WHERE id = $2", string(rank), id)
 	if err != nil {
+		if err := tx.Rollback(newCtx); err != nil {
+			slog.Log(newCtx, slog.LevelError, "%s %w transaction rollback error", op, err)
+		}
 		return 0, storage.ErrInternal
 	}
 
@@ -95,10 +115,12 @@ func (s *StoragePostgres) SaveComment(ctx context.Context, comment entity.Commen
 
 // default values limit = 10, offset = 0 (graphql schema)
 func (s *StoragePostgres) AllComments(ctx context.Context, postID int64, limit *int, offset *int) ([]*entity.Comment, error) {
+	const op = "Storage.postgresql.AllComments"
+
 	newCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	// TODO query can be more simply, if storing an additional field in the database (root comment value)
+	// TODO query can be more simply, if storing an additional field in the database (id root comment value)
 	rows, err := s.db.Query(newCtx,
 		`WITH RECURSIVE tmp(comment_id, parent_id, root) AS (
 				SELECT t1.comment_id, t1.parent_id, t1.comment_id AS root
@@ -126,7 +148,7 @@ func (s *StoragePostgres) AllComments(ctx context.Context, postID int64, limit *
 		var parentCommentID sql.NullInt64
 		err := rows.Scan(&c.ID, &c.Text, &c.UserID, &c.PostID, &parentCommentID)
 		if err != nil {
-			// TODO log error
+			slog.Log(newCtx, slog.LevelError, "%s %w failed to parse selection row from database", op, err)
 		}
 		if parentCommentID.Valid {
 			c.ParentCommentID = &parentCommentID.Int64

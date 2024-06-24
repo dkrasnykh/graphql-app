@@ -12,11 +12,11 @@ func (s *StorageMemory) SavePost(ctx context.Context, post entity.Post) (int64, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	id := s.IDPost
+	id := s.PostCounter
 	post.ID = id
 	s.IDValuePostMap[id] = post
 	s.PostAdjList[id] = make(map[int64][]int64)
-	s.IDPost += 1
+	s.PostCounter += 1
 
 	return id, nil
 }

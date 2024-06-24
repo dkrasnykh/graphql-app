@@ -10,8 +10,8 @@ import (
 // when one goroutine adds a comment for post, and another disables comments for this post
 type StorageMemory struct {
 	mu                sync.RWMutex
-	IDPost            int64
-	IDComment         int64
+	PostCounter       int64
+	CommentCounter    int64
 	IDValuePostMap    map[int64]entity.Post
 	IDValueCommentMap map[int64]entity.Comment
 	// for each comments store root comments
@@ -23,8 +23,8 @@ type StorageMemory struct {
 func New() *StorageMemory {
 	return &StorageMemory{
 		mu:                sync.RWMutex{},
-		IDPost:            1,
-		IDComment:         1,
+		PostCounter:       1,
+		CommentCounter:    1,
 		IDValuePostMap:    make(map[int64]entity.Post),
 		IDValueCommentMap: make(map[int64]entity.Comment),
 		PostRootComments:  make(map[int64][]int64),
@@ -37,8 +37,8 @@ func (s *StorageMemory) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.IDComment = 1
-	s.IDPost = 1
+	s.CommentCounter = 1
+	s.PostCounter = 1
 	s.PostAdjList = make(map[int64]map[int64][]int64)
 	s.IDValuePostMap = make(map[int64]entity.Post)
 	s.IDValueCommentMap = make(map[int64]entity.Comment)

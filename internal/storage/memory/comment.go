@@ -34,7 +34,7 @@ func (s *StorageMemory) SaveComment(ctx context.Context, comment entity.Comment)
 	}
 
 	// insert new comment
-	id := s.IDComment
+	id := s.CommentCounter
 	comment.ID = id
 	s.IDValueCommentMap[id] = comment
 
@@ -45,7 +45,7 @@ func (s *StorageMemory) SaveComment(ctx context.Context, comment entity.Comment)
 		s.PostAdjList[comment.PostID][*comment.ParentCommentID] = append(s.PostAdjList[comment.PostID][*comment.ParentCommentID], id)
 	}
 
-	s.IDComment += 1
+	s.CommentCounter += 1
 
 	return id, nil
 }

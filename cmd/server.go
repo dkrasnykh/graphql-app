@@ -1,10 +1,8 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -14,29 +12,20 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/dkrasnykh/graphql-app/graph"
+	"github.com/dkrasnykh/graphql-app/internal/config"
 	"github.com/dkrasnykh/graphql-app/internal/service"
 	"github.com/dkrasnykh/graphql-app/internal/storage/database"
 	"github.com/dkrasnykh/graphql-app/internal/storage/memory"
 	"github.com/dkrasnykh/graphql-app/internal/subscription"
 )
 
-const (
-	defaultPort = "8080"
-	//databaseURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable" // for local testing
-	databaseURL = "postgres://postgres:password@db:5432/postgres?sslmode=disable" // build docker image
-)
-
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
+	cfg, err := config.Load()
+	if err != nil {
+		panic(err)
 	}
 
-	var isMemory bool
-	flag.BoolVar(&isMemory, "m", false, "use memory storage")
-	flag.Parse()
-
-	storager := storage(isMemory)
+	storager := storage(cfg.IsMemoty, cfg.DatabaseURL)
 	subscriptions := subscription.New()
 	serv := service.New(storager, subscriptions)
 
@@ -56,17 +45,15 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 
-	//srv.AddTransport(&transport.Websocket{})
-
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
 
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Printf("connect to http://localhost:%s/ for GraphQL playground", cfg.Port)
 
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, nil))
 }
 
-func storage(isMemory bool) service.Storager {
+func storage(isMemory bool, databaseURL string) service.Storager {
 	if isMemory {
 		return memory.New()
 	}
