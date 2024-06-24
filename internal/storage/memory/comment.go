@@ -72,6 +72,9 @@ func (s *StorageMemory) AllComments(ctx context.Context, postID int64, limit *in
 
 	for _, root := range s.PostRootComments[postID] {
 		dfs(root)
+		if len(commentsList) == *limit {
+			break
+		}
 	}
 
 	return commentsList, nil

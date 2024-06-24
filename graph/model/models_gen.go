@@ -38,5 +38,12 @@ type Post struct {
 	CommentsOff bool   `json:"commentsOff"`
 }
 
+type PostsSubscribeInput struct {
+	PostIDs []string `json:"postIDs"`
+}
+
 type Query struct {
+}
+
+type Subscription struct {
 }

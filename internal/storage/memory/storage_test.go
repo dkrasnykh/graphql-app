@@ -34,6 +34,9 @@ func (ts *StoragerTestSuite) SetupSuite() {
 }
 
 func (s *StorageMemory) clean(ctx context.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.IDComment = 1
 	s.IDPost = 1
 	s.PostAdjList = make(map[int64]map[int64][]int64)

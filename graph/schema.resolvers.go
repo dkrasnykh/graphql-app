@@ -6,7 +6,6 @@ package graph
 
 import (
 	"context"
-
 	"github.com/dkrasnykh/graphql-app/graph/model"
 )
 
@@ -69,11 +68,46 @@ func (r *queryResolver) Comments(ctx context.Context, postID string, limit *int,
 	return r.Service.AllComments(ctx, id, limit, offset)
 }
 
+// Comments is the resolver for the comments field.
+func (r *subscriptionResolver) Comments(ctx context.Context, input model.PostsSubscribeInput) (<-chan *model.Comment, error) {
+	//validate posts id
+	posts := make([]int64, 0, len(input.PostIDs))
+	for _, inputPost := range input.PostIDs {
+		postID, err := r.Service.ValidateID(inputPost)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, postID)
+	}
+	// subscription id and updates from server
+	subscriptionID, updates := r.Subscriptions.Add(posts)
+	result := make(chan *model.Comment)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				r.Subscriptions.Delete(subscriptionID)
+				return
+			case comment := <-updates:
+				result <- comment
+			default:
+			}
+		}
+	}()
+
+	return result, nil
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+// Subscription returns SubscriptionResolver implementation.
+func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

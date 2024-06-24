@@ -5,6 +5,7 @@ import (
 
 	"github.com/dkrasnykh/graphql-app/graph/model"
 	"github.com/dkrasnykh/graphql-app/internal/entity"
+	"github.com/dkrasnykh/graphql-app/internal/subscription"
 )
 
 type IService interface {
@@ -22,5 +23,6 @@ type IService interface {
 }
 
 type Resolver struct {
-	Service IService
+	Service       IService
+	Subscriptions *subscription.Subscription
 }

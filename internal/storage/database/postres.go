@@ -50,3 +50,5 @@ func New(databaseURL string) (*StoragePostgres, error) {
 		timeout: time.Second * 2,
 	}, nil
 }
+
+func (s *StoragePostgres) Clear() {}

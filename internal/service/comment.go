@@ -43,19 +43,21 @@ func (s *Service) SaveComment(ctx context.Context, comment entity.Comment) (*mod
 	if err != nil {
 		switch {
 		case errors.Is(err, storage.ErrPostNotFound):
-			return nil, fmt.Errorf("%w; post id: %d", err, comment.PostID)
+			return nil, fmt.Errorf("%w; post id: %d", ErrPostNotFound, comment.PostID)
 		case errors.Is(err, storage.ErrPostCommentsDisabled):
-			return nil, fmt.Errorf("%w; post id: %d", err, comment.PostID)
+			return nil, fmt.Errorf("%w; post id: %d", ErrPostCommentsDisabled, comment.PostID)
 		case errors.Is(err, storage.ErrInvalidParentCommentID):
-			return nil, fmt.Errorf("%w; post id: %d; parent comment id: %d", err, comment.PostID, *comment.ParentCommentID)
+			return nil, fmt.Errorf("%w; post id: %d; parent comment id: %d", ErrInvalidParentCommentID, comment.PostID, *comment.ParentCommentID)
 		case errors.Is(err, storage.ErrParentCommentBelongAnotherPost):
-			return nil, fmt.Errorf("%w; current post id: %d", err, comment.PostID)
+			return nil, fmt.Errorf("%w; current post id: %d", ErrParentCommentBelongAnotherPost, comment.PostID)
 		default:
 			return nil, ErrInternal
 		}
 	}
 	comment.ID = id
-	return convertCommentEntityIntoModel(comment), nil
+	target := convertCommentEntityIntoModel(comment)
+	s.subscriptions.Broadcast(comment.PostID, target)
+	return target, nil
 }
 
 func (s *Service) AllComments(ctx context.Context, postID int64, limit *int, offset *int) ([]*model.Comment, error) {

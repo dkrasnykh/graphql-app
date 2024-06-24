@@ -31,3 +31,16 @@ func New() *StorageMemory {
 		PostAdjList:       make(map[int64]map[int64][]int64),
 	}
 }
+
+// used only in unit tests
+func (s *StorageMemory) Clear() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.IDComment = 1
+	s.IDPost = 1
+	s.PostAdjList = make(map[int64]map[int64][]int64)
+	s.IDValuePostMap = make(map[int64]entity.Post)
+	s.IDValueCommentMap = make(map[int64]entity.Comment)
+	s.PostRootComments = make(map[int64][]int64)
+}

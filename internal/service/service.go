@@ -5,13 +5,19 @@ import (
 	"errors"
 
 	"github.com/dkrasnykh/graphql-app/internal/entity"
+	"github.com/dkrasnykh/graphql-app/internal/subscription"
 )
 
 var (
-	ErrInvalidID         = errors.New("error converting post id into int64 type")
-	ErrInternal          = errors.New("internal error")
-	ErrEmptyBody         = errors.New("text value should not be empty")
-	ErrCommentBodyTooBig = errors.New("comment text should not exceed 2000 characters")
+	ErrInvalidID                      = errors.New("error converting post id into int64 type")
+	ErrInternal                       = errors.New("internal error")
+	ErrEmptyBody                      = errors.New("text value should not be empty")
+	ErrCommentBodyTooBig              = errors.New("comment text should not exceed 2000 characters")
+	ErrPostNotFound                   = errors.New("post with id does not exist")
+	ErrAccess                         = errors.New("post keeper is another user")
+	ErrPostCommentsDisabled           = errors.New("сomments are turned off")
+	ErrInvalidParentCommentID         = errors.New("there is no comment with ParentCommentID for this post")
+	ErrParentCommentBelongAnotherPost = errors.New("parent comment belong another post")
 )
 
 type Storager interface {
@@ -22,14 +28,18 @@ type Storager interface {
 
 	SaveComment(ctx context.Context, comment entity.Comment) (int64, error)
 	AllComments(ctx context.Context, postID int64, limit *int, offset *int) ([]*entity.Comment, error)
+
+	Clear() // for unit tests (implemented only for memory storage)
 }
 
 type Service struct {
-	storage Storager
+	storage       Storager
+	subscriptions *subscription.Subscription
 }
 
-func New(storage Storager) *Service {
+func New(storage Storager, subscriptions *subscription.Subscription) *Service {
 	return &Service{
-		storage: storage,
+		storage:       storage,
+		subscriptions: subscriptions,
 	}
 }

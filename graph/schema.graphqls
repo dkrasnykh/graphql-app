@@ -42,3 +42,11 @@ type Mutation {
   createComment(input: NewComment!): Comment!
   disableComments(input: DisableCommentsRequest!):Boolean!
 }
+
+input PostsSubscribeInput {
+  postIDs: [ID!]!
+}
+
+type Subscription {
+  comments(input: PostsSubscribeInput!): Comment
+}

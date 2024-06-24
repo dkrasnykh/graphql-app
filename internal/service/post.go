@@ -53,11 +53,11 @@ func (s *Service) DisableComments(ctx context.Context, userID int64, postID int6
 	if err := s.storage.DisableComments(ctx, userID, postID); err != nil {
 		switch {
 		case errors.Is(err, storage.ErrPostNotFound):
-			return fmt.Errorf("%w; post id: %d", err, postID)
+			return fmt.Errorf("%w; post id: %d", ErrPostNotFound, postID)
 		case errors.Is(err, storage.ErrAccess):
-			return fmt.Errorf("%w; userID: %d; postID: %d", err, userID, postID)
+			return fmt.Errorf("%w; userID: %d; postID: %d", ErrAccess, userID, postID)
 		case errors.Is(err, storage.ErrPostCommentsDisabled):
-			return fmt.Errorf("comments already turned off; post id: %d", postID)
+			return fmt.Errorf("%w; comments already turned off; post id: %d", ErrPostCommentsDisabled, postID)
 		default:
 			return ErrInternal
 		}
@@ -68,9 +68,13 @@ func (s *Service) DisableComments(ctx context.Context, userID int64, postID int6
 func (s *Service) PostById(ctx context.Context, ID int64) (*model.Post, error) {
 	post, err := s.storage.PostByID(ctx, ID)
 	if err != nil {
-		return nil, ErrInternal
+		switch {
+		case errors.Is(err, storage.ErrPostNotFound):
+			return nil, ErrPostNotFound
+		default:
+			return nil, ErrInternal
+		}
 	}
-
 	return convertPostEntityIntoModel(*post), nil
 }
 
